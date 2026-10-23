@@ -1,0 +1,230 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <!-- Define la codificación para mostrar correctamente los caracteres. -->
+  <meta charset="UTF-8">
+
+  <!-- Adapta el diseño al tamaño de pantalla del dispositivo. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Título que aparece en la pestaña del navegador. -->
+  <title>Envío de correo</title>
+
+  <style>
+    /* Incluye el padding y los bordes dentro del tamaño de cada elemento. */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Estilo general de la página. */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      color: #f5f5f5;
+      background: #12131a;
+    }
+
+    /* Caja principal que contiene el formulario. */
+    main {
+      width: 100%;
+      max-width: 440px;
+      padding: 28px;
+      border: 1px solid #353747;
+      border-radius: 16px;
+      background: #20212c;
+    }
+
+    /* Elimina el margen superior del título. */
+    h1 {
+      margin-top: 0;
+    }
+
+    /* Separa las etiquetas de sus campos. */
+    label {
+      display: block;
+      margin: 18px 0 8px;
+    }
+
+    /* Estilo de los campos de correo y mensaje. */
+    input[type="email"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #45485b;
+      border-radius: 8px;
+      background: #151620;
+      color: white;
+      font: inherit;
+    }
+
+    /* Ajusta el tamaño inicial del área del mensaje. */
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    /* Coloca la casilla y su texto uno al lado del otro. */
+    .consentimiento {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.5;
+    }
+
+    /* Estilo del botón de envío. */
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 13px;
+      border: 0;
+      border-radius: 8px;
+      background: #7665ff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    /* Cambia el aspecto del botón mientras se envía. */
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    /* Evita que mensajes largos desborden la caja. */
+    #estado {
+      overflow-wrap: anywhere;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Contenedor principal de la página. -->
+  <main>
+    <h1>Enviar un correo</h1>
+
+    <p>
+      Envía un mensaje a un destinatario que haya aceptado recibirlo.
+    </p>
+
+    <!-- Formulario que gestionará JavaScript. -->
+    <form id="formulario">
+
+      <!-- Campo donde se escribe el correo del destinatario. -->
+      <label for="correo">Correo del destinatario</label>
+
+      <input
+        id="correo"
+        name="correo"
+        type="email"
+        maxlength="254"
+        autocomplete="email"
+        placeholder="persona@ejemplo.com"
+        required
+      >
+
+      <!-- Campo donde se escribe el contenido del correo. -->
+      <label for="mensaje">Mensaje</label>
+
+      <textarea
+        id="mensaje"
+        name="mensaje"
+        maxlength="3000"
+        placeholder="Escribe tu mensaje..."
+        required
+      ></textarea>
+
+      <!-- Casilla para confirmar el consentimiento del destinatario. -->
+      <label class="consentimiento">
+        <input id="consentimiento" type="checkbox" required>
+
+        <span>
+          Confirmo que el destinatario ha aceptado recibir este correo.
+        </span>
+      </label>
+
+      <!-- Botón que inicia el envío del formulario. -->
+      <button id="boton" type="submit">
+        Enviar correo
+      </button>
+
+      <!-- Aquí mostraremos el resultado del envío. -->
+      <p id="estado" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <script>
+    // Obtenemos referencias a los elementos de la página.
+    const formulario = document.getElementById("formulario");
+    const boton = document.getElementById("boton");
+    const estado = document.getElementById("estado");
+
+    // Ejecutamos este código cuando el usuario envía el formulario.
+    formulario.addEventListener("submit", async (event) => {
+
+      // Evita que el navegador recargue la página automáticamente.
+      event.preventDefault();
+
+      // Comprueba los campos obligatorios y el formato del correo.
+      if (!formulario.reportValidity()) return;
+
+      // Pide confirmación antes de enviar el correo real.
+      const confirmado = window.confirm(
+        "¿Quieres enviar este correo al destinatario indicado?"
+      );
+
+      // Si el usuario cancela, no hacemos ninguna solicitud.
+      if (!confirmado) return;
+
+      // Desactiva el botón para evitar clics repetidos durante el envío.
+      boton.disabled = true;
+
+      // Informa de que el servidor está procesando la solicitud.
+      estado.textContent = "Enviando...";
+
+      try {
+        // Enviamos los datos al servidor Node.js mediante HTTP.
+        const respuesta = await fetch("/api/enviar", {
+          method: "POST",
+
+          // Indicamos que el contenido enviado es JSON.
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          // Convertimos los campos del formulario en un objeto JSON.
+          body: JSON.stringify({
+            correo: document.getElementById("correo").value.trim(),
+
+            mensaje: document.getElementById("mensaje").value,
+
+            consentimiento:
+              document.getElementById("consentimiento").checked
+          })
+        });
+
+        // Convertimos la respuesta del servidor a un objeto JavaScript.
+        const resultado = await respuesta.json();
+
+        // Mostramos el mensaje que devuelve el servidor.
+        estado.textContent = respuesta.ok
+          ? resultado.mensaje
+          : (resultado.error || "No se pudo enviar el correo.");
+
+      } catch {
+        // Este bloque se ejecuta si no podemos contactar con el servidor.
+        estado.textContent = "No se pudo conectar con el servidor.";
+
+      } finally {
+        // Reactivamos el botón incluso si ocurre un error.
+        boton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
