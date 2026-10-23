@@ -1,6 +1,0 @@
-
-# Excluye las credenciales privadas.
-.env
-
-# Excluye las dependencias instaladas por npm.
-node_modules/
